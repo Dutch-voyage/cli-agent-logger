@@ -20,6 +20,11 @@ except ImportError:
 
 def extract_flows_to_json(mitm_file, output_file=None, merge_streaming=True):
     """Convert mitmweb flow file to JSON with both merged and unmerged options"""
+    # Ensure output directory exists if output_file is specified
+    if output_file:
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+    
     if not os.path.exists(mitm_file):
         print(f"❌ File not found: {mitm_file}")
         return False
@@ -149,6 +154,10 @@ def extract_flows_to_json(mitm_file, output_file=None, merge_streaming=True):
     # Original format
     original_file = output_file or f"{base_name}_original.json"
     merged_file = f"{base_name}_merged.json"
+    
+    # Ensure directories exist for output files
+    Path(original_file).parent.mkdir(parents=True, exist_ok=True)
+    Path(merged_file).parent.mkdir(parents=True, exist_ok=True)
     
     try:
         # Save original (unmerged)

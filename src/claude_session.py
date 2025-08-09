@@ -32,6 +32,9 @@ class ClaudeSession:
 
     def start_logger(self, target_url):
         """Start the logger in background terminal"""
+        # Ensure logs directory exists
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
+        
         print(f"🚀 Starting API logger in background...")
         print(f"   Target: {target_url}")
         print(f"   Proxy: http://localhost:{self.port}")

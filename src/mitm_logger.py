@@ -67,8 +67,8 @@ mode: reverse:{self.target_url}
 
 # Logging configuration for debug mode
 proxy_debug: {'true' if self.debug else 'false'}
+web_debug: {'true' if self.debug else 'false'}
 termlog_verbosity: {'debug' if self.debug else 'info'}
-console_eventlog_verbosity: {'debug' if self.debug else 'info'}
 """
             # Write the configuration file
             with open(config_file, 'w') as f:
@@ -110,22 +110,28 @@ console_eventlog_verbosity: {'debug' if self.debug else 'info'}
                 "--web-host", self.host,
                 "--web-port", str(self.port + 1000),
                 "--set", f"save_stream_file=cli_agent_requests.mitm",
-                "--set", "stream_large_bodies=10m",
-                "--set", "body_size_limit=50m",
-                "--set", "connection_timeout=30",
-                "--set", "read_timeout=30",
-                "--set", "keep_alive_timeout=75",
-                "--set", "http2_ping_keepalive=30",
-                "--set", "upstream_cert=false"
+                "--set", "stream_large_bodies=100m",
+                "--set", "body_size_limit=500m",
+                "--set", "connection_timeout=600",
+                "--set", "read_timeout=600",
+                "--set", "response_timeout=900",
+                "--set", "keep_alive_timeout=600",
+                "--set", "http2_ping_keepalive=60",
+                "--set", "tcp_keepalive=true",
+                "--set", "stream_websockets=true",
+                "--set", "websocket_ping_interval=30",
+                "--set", "websocket_ping_timeout=300",
+                "--set", "upstream_cert=false",
+                "--set", "stream_websockets=true",
+                "--set", "anticomp=true"
             ]
             
             # Add debug settings if debug mode is enabled
             if self.debug:
                 cmd.extend([
-                    "--set", "flow_detail=3",
                     "--set", "proxy_debug=true",
-                    "--set", "termlog_verbosity=debug",
-                    "--set", "console_eventlog_verbosity=debug"
+                    "--set", "web_debug=true",
+                    "--set", "termlog_verbosity=debug"
                 ])
             
             debug_log_file = self.local_logs_dir / "mitm_debug.log"

@@ -80,22 +80,24 @@ class ClaudeSession:
             "--web-host", "localhost",
             "--web-port", str(self.port + 1000),
             "--set", f"save_stream_file=cli_agent_requests.mitm",
-            "--set", "stream_large_bodies=10m",
-            "--set", "body_size_limit=50m",
-            "--set", "connection_timeout=30",
-            "--set", "read_timeout=30",
-            "--set", "keep_alive_timeout=75",
-            "--set", "http2_ping_keepalive=30",
-            "--set", "upstream_cert=false"
+            "--set", "stream_large_bodies=100m",
+            "--set", "body_size_limit=500m",
+            "--set", "connection_timeout=300",
+            "--set", "read_timeout=300",
+            "--set", "response_timeout=600",
+            "--set", "keep_alive_timeout=300",
+            "--set", "http2_ping_keepalive=60",
+            "--set", "upstream_cert=false",
+            "--set", "stream_websockets=true",
+            "--set", "anticomp=true"
         ]
         
         # Add debug settings if debug mode is enabled
         if self.debug:
             cmd.extend([
-                "--set", "flow_detail=3",
                 "--set", "proxy_debug=true",
-                "--set", "verbose=true",
-                "--set", "debug=true"
+                "--set", "web_debug=true",
+                "--set", "termlog_verbosity=debug"
             ])
         
         # Start logger process with correct working directory

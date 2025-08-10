@@ -35,8 +35,8 @@ Examples:
     )
     parser.add_argument(
         '--logs-dir', '-d',
-        default='logs',
-        help='Directory to save logs (default: logs)'
+        default='cli-agent-logs',
+        help='Directory to save logs (default: cli-agent-logs)'
     )
     
     args = parser.parse_args()

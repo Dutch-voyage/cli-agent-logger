@@ -37,17 +37,17 @@ def extract_flows_to_json(mitm_file, output_file=None, merge_streaming=True):
             flow_reader = io.FlowReader(f)
             
             for flow in flow_reader.stream():
-                if hasattr(flow, 'request') and hasattr(flow, 'response'):
+                if hasattr(flow, 'request') and hasattr(flow, 'response') and flow.response is not None:
                     # Extract request details
-                    request_body = flow.request.get_text() if flow.request.content else None
-                    response_body = flow.response.get_text() if flow.response.content else None
+                    request_body = flow.request.get_text() if flow.request and flow.request.content else None
+                    response_body = flow.response.get_text() if flow.response and flow.response.content else None
                     
                     # Original (unmerged) response
                     original_response = {
-                        'status_code': flow.response.status_code,
-                        'headers': dict(flow.response.headers),
+                        'status_code': flow.response.status_code if flow.response else None,
+                        'headers': dict(flow.response.headers) if flow.response and hasattr(flow.response, 'headers') else {},
                         'response_body': response_body,
-                        'size': len(flow.response.content) if flow.response.content else 0,
+                        'size': len(flow.response.content) if flow.response and flow.response.content else 0,
                         'is_streaming': 'data: ' in (response_body or '')
                     }
                     
@@ -116,7 +116,7 @@ def extract_flows_to_json(mitm_file, output_file=None, merge_streaming=True):
                     
                     # Build request data with clean structure
                     request_data = {
-                        'timestamp': datetime.fromtimestamp(flow.request.timestamp_start).isoformat(),
+                        'timestamp': datetime.fromtimestamp(flow.request.timestamp_start).isoformat() if flow.request and hasattr(flow.request, 'timestamp_start') else datetime.now().isoformat(),
                         'request_body': parsed_request_body,
                         'response': {}
                     }
@@ -149,7 +149,7 @@ def extract_flows_to_json(mitm_file, output_file=None, merge_streaming=True):
         return False
     
     # Save both formats
-    base_name = mitm_file.replace('.mitm', '').replace('moonshot_requests', 'cli_agent_requests')
+    base_name = mitm_file.replace('.mitm', '')
     
     # Original format
     original_file = output_file or f"{base_name}_original.json"
@@ -178,14 +178,76 @@ def extract_flows_to_json(mitm_file, output_file=None, merge_streaming=True):
         return False
 
 
+def extract_from_both_locations():
+    """Extract logs from local files and copy JSON to global locations"""
+    from pathlib import Path
+    import shutil
+    
+    # Check local directory for mitm files
+    local_logs_dir = Path("cli-agent-logs")
+    
+    # Process all mitm files in local directory
+    mitm_files = list(local_logs_dir.glob("*.mitm"))
+    if not mitm_files:
+        mitm_files = [local_logs_dir / "cli_agent_requests.mitm"]
+    
+    extracted_count = 0
+    
+    for mitm_file in mitm_files:
+        if mitm_file.exists():
+            # Create global directory based on current working directory path
+            current_dir = Path.cwd()
+            # Create a safe directory name from the full path
+            dir_name = str(current_dir).replace('/', '-').replace(':', '-').replace(' ', '-')
+            global_logs_dir = Path.home() / ".claude" / "projects" / dir_name
+            global_logs_dir.mkdir(parents=True, exist_ok=True)
+            
+            print(f"🔄 Processing: {mitm_file}")
+            print(f"   📁 Global JSON output: {global_logs_dir}")
+            
+            # Extract JSON files to local directory first
+            success = extract_flows_to_json(str(mitm_file))
+            
+            if success:
+                # Copy merged JSON file to global directory with timestamp
+                from datetime import datetime
+                
+                base_name = str(mitm_file).replace('.mitm', '')
+                
+                merged_json_file = f"{base_name}_merged.json"
+                local_json = Path(merged_json_file)
+                if local_json.exists():
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    global_json = global_logs_dir / f"cli_agent_requests_{timestamp}.json"
+                    shutil.copy2(local_json, global_json)
+                    print(f"   • Copied merged JSON to global directory: {global_json}")
+                        
+                extracted_count += 1
+                print(f"✅ Extracted and copied to global directory")
+            else:
+                print(f"⚠️  Failed to extract")
+    
+    if extracted_count == 0:
+        print("❌ No mitm files found in local directory")
+        return False
+    
+    return True
+
 def main():
     parser = argparse.ArgumentParser(description='Convert mitmweb flows to JSON')
-    parser.add_argument('mitm_file', help='Path to .mitm flow file')
+    parser.add_argument('mitm_file', nargs='?', help='Path to .mitm flow file')
     parser.add_argument('-o', '--output', help='Output JSON file')
+    parser.add_argument('--all', action='store_true', help='Extract from both local and global locations')
     
     args = parser.parse_args()
     
-    extract_flows_to_json(args.mitm_file, args.output)
+    if args.all:
+        extract_from_both_locations()
+    elif args.mitm_file:
+        extract_flows_to_json(args.mitm_file, args.output)
+    else:
+        # Default behavior: check both locations
+        extract_from_both_locations()
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ Extract logs from mitmweb capture into JSON format
 import argparse
 import json
 import os
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -181,7 +182,6 @@ def extract_flows_to_json(mitm_file, output_file=None, merge_streaming=True):
 def extract_from_both_locations():
     """Extract logs from local files and copy JSON to global locations"""
     from pathlib import Path
-    import shutil
     
     # Check local directory for mitm files
     local_logs_dir = Path("cli-agent-logs")

@@ -5,6 +5,7 @@ Integrated command to run Claude CLI with API logging
 
 import argparse
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -99,14 +100,23 @@ class ClaudeSession:
         
         # Start logger process with correct working directory
         try:
+            debug_log_file = self.logs_dir / "mitm_debug.log"
             if self.debug:
-                # In debug mode, capture output for debugging
+                # In debug mode, redirect ALL output to file using shell
+                env = os.environ.copy()
+                env['MITMPROXY_DEBUG'] = '1'
+                
+                # Use shell to redirect both stdout and stderr
+                cmd_str = ' '.join(f'"{arg}"' for arg in cmd) + f' >"{debug_log_file}" 2>&1'
                 self.logger_process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    cwd=self.logs_dir
+                    cmd_str,
+                    shell=True,
+                    env=env,
+                    cwd=self.logs_dir,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
                 )
+                print(f"🐛 Debug mode enabled - logs written to: {debug_log_file}")
             else:
                 # In normal mode, suppress output
                 self.logger_process = subprocess.Popen(
@@ -157,6 +167,7 @@ class ClaudeSession:
         if self.original_env:
             os.environ.clear()
             os.environ.update(self.original_env)
+
 
         # Stop logger
         print("🛑 Stopping logger...")

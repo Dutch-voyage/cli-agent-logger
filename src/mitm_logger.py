@@ -64,6 +64,11 @@ web_host: {self.host}
 web_port: {self.port + 1000}
 listen_port: {self.port}
 mode: reverse:{self.target_url}
+
+# Logging configuration for debug mode
+proxy_debug: {'true' if self.debug else 'false'}
+termlog_verbosity: {'debug' if self.debug else 'info'}
+console_eventlog_verbosity: {'debug' if self.debug else 'info'}
 """
             # Write the configuration file
             with open(config_file, 'w') as f:
@@ -119,15 +124,36 @@ mode: reverse:{self.target_url}
                 cmd.extend([
                     "--set", "flow_detail=3",
                     "--set", "proxy_debug=true",
-                    "--set", "verbose=true",
-                    "--set", "debug=true"
+                    "--set", "termlog_verbosity=debug",
+                    "--set", "console_eventlog_verbosity=debug"
                 ])
             
-            self.process = subprocess.Popen(cmd, cwd=self.local_logs_dir)
+            debug_log_file = self.local_logs_dir / "mitm_debug.log"
+            if self.debug:
+                # In debug mode, redirect ALL output to file using shell
+                env = os.environ.copy()
+                env['MITMPROXY_DEBUG'] = '1'
+                
+                # Use shell to redirect both stdout and stderr
+                cmd_str = ' '.join(f'"{arg}"' for arg in cmd) + f' >"{debug_log_file}" 2>&1'
+                self.process = subprocess.Popen(
+                    cmd_str,
+                    shell=True,
+                    env=env,
+                    cwd=self.local_logs_dir,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                print(f"🐛 Debug mode enabled - logs written to: {debug_log_file}")
+            else:
+                self.process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    cwd=self.local_logs_dir
+                )
             
             print("✅ Logger started successfully!")
-            if self.debug:
-                print("🐛 Debug mode enabled - verbose logging active")
             print("📁 Logs will be saved to both local and global locations")
             print(f"   • Local: {self.local_logs_dir}/cli_agent_requests.mitm")
             print(f"   • Global: {self.global_logs_dir}/cli_agent_requests.mitm")
@@ -152,6 +178,7 @@ mode: reverse:{self.target_url}
             except subprocess.TimeoutExpired:
                 self.process.kill()
                 self.process.wait()
+        
         
         # Copy logs to global location when stopping
         self._sync_logs_to_global()
